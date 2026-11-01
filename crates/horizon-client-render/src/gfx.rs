@@ -1051,10 +1051,10 @@ impl wgpu::rwh::HasDisplayHandle for WindowDisplay {
 /// then OpenGL (Windows and Linux) for GPUs with neither driver, each when the one
 /// before has no surface, adapter or device. A native crash in the driver can't be
 /// caught in the game; the launcher switches the setting to DirectX 12 after one at
-/// the renderer's start (#746). macOS has Metal only.
+/// the renderer's start (#746). macOS and iOS have Metal only.
 fn backend_order(api: GraphicsApi, os: &str, wgpu_backend: bool) -> Vec<wgpu::Backends> {
     use wgpu::Backends;
-    if os == "macos" || wgpu_backend {
+    if matches!(os, "macos" | "ios") || wgpu_backend {
         return vec![Backends::default()];
     }
     let windows = os == "windows";
@@ -7023,10 +7023,11 @@ mod tests {
         );
         assert_eq!(order(GraphicsApi::Dx12, "linux"), [Backends::VULKAN]);
         assert_eq!(order(GraphicsApi::OpenGl, "linux"), [Backends::GL]);
-        // WGPU_BACKEND picks the backends itself; macOS has Metal only.
+        // WGPU_BACKEND picks the backends itself; macOS and iOS have Metal only.
         for api in GraphicsApi::ALL {
             assert_eq!(backend_order(api, "windows", true), [Backends::default()]);
             assert_eq!(order(api, "macos"), [Backends::default()]);
+            assert_eq!(order(api, "ios"), [Backends::default()]);
         }
     }
     /// The second try at a backend shows the adapters wgpu hides for reporting

@@ -1,0 +1,27 @@
+# Builds an unsigned Horizon.ipa for TrollStore. No Apple account, certificate or
+# provisioning profile is involved: TrollStore fakesigns the artifact on install.
+name: iOS IPA
+on:
+  push:
+    branches: [ios]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ios-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ipa:
+    runs-on: macos-14
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: rustup target add aarch64-apple-ios
+      - run: sh tools/ios_ipa.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Horizon-ipa
+          path: build/ios/Horizon.ipa
+          if-no-files-found: error

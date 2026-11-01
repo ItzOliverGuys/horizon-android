@@ -16,6 +16,15 @@ fn main() {
     horizon_threads::configure_allocator();
     std::hint::black_box(&MOD_API_LEVEL);
     horizon_client::telemetry::mark_start();
+    // iOS has no command line or working directory: the app container's Documents
+    // folder is the game folder, and where a prepared resources folder is copied.
+    #[cfg(target_os = "ios")]
+    if let Some(user) = std::env::var_os("HOME") {
+        let documents = std::path::Path::new(&user).join("Documents");
+        let _ = std::fs::create_dir_all(&documents);
+        let _ = std::env::set_current_dir(&documents);
+        logging::set_game_home(documents);
+    }
     let args: Vec<String> = std::env::args().skip(1).collect();
     let game_args = args.iter().take_while(|a| *a != "--dedicated");
     let help = game_args
