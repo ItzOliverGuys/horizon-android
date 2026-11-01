@@ -13,7 +13,7 @@ out=build/ios
 name=Horizon
 
 cargo build --profile fast --no-default-features --features audio \
-    -p horizon-client --target "$target"
+    --bin horizon-client --target "$target"
 
 rm -rf "$out/$name.app"
 mkdir -p "$out/$name.app"
