@@ -19,6 +19,9 @@ jobs:
         with:
           persist-credentials: false
       - run: rustup target add aarch64-apple-ios
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ios
       - run: sh tools/ios_ipa.sh
       - uses: actions/upload-artifact@v4
         with:
