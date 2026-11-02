@@ -13,25 +13,46 @@ sh tools/ios_ipa.sh        # -> build/ios/Horizon.ipa
 ```
 
 Or push to the `ios` branch and download the `Horizon-ipa` artifact from the
-**iOS IPA** workflow; it runs on a macOS runner.
+**iOS IPA** workflow; it runs on a macOS runner, so no Mac is needed.
 
-## Install
+## Install and first launch
 
 1. Open `Horizon.ipa` in TrollStore.
-2. Put the prepared resources where the game finds them: connect the device, open
-   Horizon in Finder or the Files app (app documents are shared), and copy the
-   `.local` folder from a PC prepared install so that
-   `Documents/.local/horizon-client/26.3/horizon-resources.json` exists.
-   The game downloads nothing itself yet.
-3. Launch Horizon.
+2. Launch Horizon. The first launch downloads and prepares the vanilla resources on
+   the device (~500 MiB, several minutes, blank window — progress is in `logs/latest.log`),
+   then quits by itself.
+3. Launch again to play.
 
-The container is the game folder: `saves/`, `options.txt`, `logs/` and `.local/` live in
-`Documents`. Copying a world into `Documents/saves/` works the same way.
+The app container is the game folder: `saves/`, `options.txt`, `logs/` and `.local/` live in
+`Documents`, shown in the Files app.
+
+## Controls
+
+Touch drives the desktop mouse path:
+
+| Input | Action |
+|---|---|
+| Drag | Look around |
+| Tap / hold | Mine (hold) or use the held item |
+| Two-finger tap | Right-click: place a block, use an item |
+| Tap in a menu | Click |
+
+Held mining works; there is no on-screen joystick, hotbar or keyboard yet, so movement needs
+a Bluetooth keyboard, and text fields need one too.
+
+## Memory ceiling
+
+`memory-limit.txt` in the game folder, one number of MiB:
+
+```
+2048
+```
+
+Past it an allocation fails and the game aborts, the way `-Xmx` runs out in the JVM. Without
+the file there is no ceiling. `HORIZON_MEMORY_LIMIT_MB` overrides it.
 
 ## What this build is
 
-The desktop engine compiled for iOS: Metal renderer, sound through CoreAudio, the server
-thread and single player. It boots and plays, but input is still the desktop path — no
-touch controls, no on-screen keyboard and no on-device resource installer yet, so it needs
-a Bluetooth keyboard/mouse or a controller to be usable. Controllers (`gilrs`) and code
-mods (wasmtime's JIT, which iOS forbids) are off; the clipboard stays inside the game.
+The desktop engine compiled for iOS: Metal renderer, sound through CoreAudio, single player
+and multiplayer. Controllers (`gilrs`) and code mods (wasmtime's JIT, which iOS forbids) are
+off; the clipboard stays inside the game.
