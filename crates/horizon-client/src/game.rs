@@ -7041,6 +7041,11 @@ impl Game<'_> {
                 self.captured =
                     !crate::keyboard_mouse_input() || crate::platform::capture_mouse(true);
             }
+            // iOS has no pointer to grab: the touch layer owns the view.
+            #[cfg(target_os = "ios")]
+            {
+                self.captured = true;
+            }
             #[cfg(not(target_os = "macos"))]
             if self.captured && self.focused {
                 warp(window);
@@ -12506,6 +12511,11 @@ impl Game<'_> {
         )
     }
     fn apply_settings(&mut self) {
+        #[cfg(target_os = "ios")]
+        {
+            self.pad.touch.settings = self.settings.touch.clone();
+            self.pad.touch.force_crosshair = true;
+        }
         #[cfg(target_os = "android")]
         {
             self.pad.touch.settings = self.settings.touch.clone();
@@ -13540,7 +13550,7 @@ impl Game<'_> {
             return Ok(false);
         };
         // Load the profile's scheme before drawing the first frame or outline.
-        #[cfg(target_os = "android")]
+        #[cfg(any(target_os = "android", target_os = "ios"))]
         self.pad.touch.viewport(size[0], size[1]);
         let alpha = self.clock.fraction();
         // Camera.getCameraEntityPartialTicks: the view, the hand and the
@@ -13752,6 +13762,16 @@ impl Game<'_> {
                     .touch_ui
                     .draw(&mut hud, &self.gui.atlas, self.pad_in_menu());
             }
+        }
+        // iOS is always a touch screen: the overlay is the joystick, the jump
+        // and sneak buttons and the menu buttons.
+        #[cfg(target_os = "ios")]
+        if !self.pad_in_menu() && self.pad.touch.editor.is_none() {
+            self.pad.touch.vertical_movement = self.player.as_ref().is_some_and(|p| p.flying);
+            self.pad.touch.swimming = self.player.as_ref().is_some_and(|p| p.swimming);
+            self.pad.touch.mounted = self.riding.is_some();
+            self.pad.touch.sneaking = self.keys.contains(&KeyCode::ShiftLeft);
+            self.pad.touch.draw(&mut hud, &self.gui.atlas);
         }
         self.flush_ime(&mut hud);
         // LevelLoadingScreen (Reason.OTHER) draws the title's panorama.
@@ -14768,17 +14788,7 @@ impl ApplicationHandler for Game<'_> {
         }
         #[cfg(target_os = "ios")]
         if let WindowEvent::Touch(touch) = &event {
-            let (events, motion) = ios_touch::translate(touch);
-            if let Some(delta) = motion {
-                self.device_event(
-                    event_loop,
-                    winit::event::DeviceId::dummy(),
-                    winit::event::DeviceEvent::MouseMotion { delta },
-                );
-            }
-            for event in events {
-                self.window_event(event_loop, id, event);
-            }
+            ios_touch::handle(self, touch, event_loop, id);
             return;
         }
         #[cfg(target_os = "android")]

@@ -33,7 +33,7 @@ pub(super) struct Pads {
     last_input_mode: Option<horizon_client::android_gamepad::InputMode>,
     #[cfg(target_os = "android")]
     pub(super) touch_shield: bool,
-    #[cfg(target_os = "android")]
+    #[cfg(any(target_os = "android", target_os = "ios"))]
     pub(super) touch: horizon_client::touch::TouchControls,
     /// Keep a released tap's ray until the tick consumed its queued click.
     #[cfg(target_os = "android")]
@@ -175,7 +175,7 @@ impl Game<'_> {
             self.pad.touch.clear_world_gesture();
         }
         let settings = &self.settings.controller;
-        if !settings.enabled && !cfg!(target_os = "android") {
+        if !settings.enabled && !cfg!(any(target_os = "android", target_os = "ios")) {
             self.pad_output_off();
             if self.pad.state != PadState::default() {
                 self.pad.state = PadState::default();
@@ -197,6 +197,10 @@ impl Game<'_> {
         let hardware = self.pad.read();
         self.ui.options.pad_style = self.settings.controller.glyphs.resolve(self.pad.style);
         let state = hardware.merge(&self.pad.injected);
+        // iOS has no controller backend: the on-screen joystick and buttons are
+        // the pad.
+        #[cfg(target_os = "ios")]
+        let state = state.merge(&self.pad.touch.poll_state());
         #[cfg(target_os = "android")]
         let state = {
             self.pad.touch.shield_available = self.touch_shield_available();
@@ -542,7 +546,7 @@ impl Game<'_> {
     /// The left stick as the move vector, while playing.
     pub(super) fn pad_move(&self) -> Option<[f32; 2]> {
         let settings = &self.settings.controller;
-        if (!settings.enabled && !cfg!(target_os = "android"))
+        if (!settings.enabled && !cfg!(any(target_os = "android", target_os = "ios")))
             || self.pad_in_menu()
             || !self.pad_focused()
         {
