@@ -15162,6 +15162,9 @@ impl ApplicationHandler for Game<'_> {
                 self.android_release_touch_keys(true);
                 horizon_client::android_runtime::clear_gamepads();
             }
+            // A finger on the overlay when the app goes away never sends its end.
+            #[cfg(target_os = "ios")]
+            self.pad.touch.clear();
             self.physical_keys.clear();
             self.physical_buttons.clear();
         }

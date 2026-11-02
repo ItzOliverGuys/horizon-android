@@ -28,21 +28,26 @@ The app container is the game folder: `saves/`, `options.txt`, `logs/` and `.loc
 
 ## Controls
 
-Touch drives the desktop mouse path:
+The engine's touch layer is on: the joystick and the buttons are the same ones
+the Android build draws.
 
 | Input | Action |
 |---|---|
-| Drag | Look around |
-| Tap / hold | Mine (hold) or use the held item |
+| Joystick (lower left) | Walk; push past the edge to sprint |
+| Jump / sneak / sprint buttons | As labelled |
+| Drag anywhere else | Look around |
+| Tap or hold | Mine (hold) or use the held item |
 | Two-finger tap | Right-click: place a block, use an item |
+| Tap the hotbar | Select that slot |
+| Inventory / pause buttons | Open the inventory or the pause menu |
 | Tap in a menu | Click |
 
-Held mining works; there is no on-screen joystick, hotbar or keyboard yet, so movement needs
-a Bluetooth keyboard, and text fields need one too.
+Chat, options, perspective and debug buttons open their screens. Text fields need a
+Bluetooth keyboard: there is no on-screen keyboard yet.
 
 ## Memory ceiling
 
-`memory-limit.txt` in the game folder, one number of MiB:
+`memory-limit.txt` in the game folder (Files app → On My iPhone → Horizon), one number of MiB:
 
 ```
 2048
