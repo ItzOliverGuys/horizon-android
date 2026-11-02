@@ -25,6 +25,23 @@ fn main() {
         let _ = std::env::set_current_dir(&documents);
         logging::set_game_home(documents);
     }
+    // The memory ceiling: `memory-limit.txt`, one number of MiB, or
+    // HORIZON_MEMORY_LIMIT_MB. Past it an allocation fails and the game aborts,
+    // as `-Xmx` does in the JVM. Its own file: options.txt is rewritten by the
+    // settings screen.
+    #[cfg(target_os = "ios")]
+    {
+        let from_file = std::fs::read_to_string("memory-limit.txt")
+            .ok()
+            .map(|text| text.trim().to_owned());
+        let mb = std::env::var("HORIZON_MEMORY_LIMIT_MB")
+            .ok()
+            .or(from_file)
+            .and_then(|value| value.parse::<usize>().ok());
+        if let Some(mb) = mb.filter(|mb| *mb > 0) {
+            horizon_threads::set_memory_limit(mb.saturating_mul(1024 * 1024));
+        }
+    }
     let args: Vec<String> = std::env::args().skip(1).collect();
     let game_args = args.iter().take_while(|a| *a != "--dedicated");
     let help = game_args

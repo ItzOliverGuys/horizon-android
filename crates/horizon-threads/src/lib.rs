@@ -202,7 +202,52 @@ pub fn catch_stop_signals() {}
 #[cfg(not(target_os = "ios"))]
 pub use mimalloc::MiMalloc as Allocator;
 #[cfg(target_os = "ios")]
-pub use std::alloc::System as Allocator;
+pub use capped::{Allocator, memory_used, set_memory_limit};
+
+/// The system heap, counted, so a memory ceiling can be offered (the JVM's
+/// `-Xmx` in vanilla's launcher): past it allocations fail and the game aborts,
+/// instead of the OS killing it for the phone's whole memory.
+#[cfg(target_os = "ios")]
+mod capped {
+    use std::alloc::{GlobalAlloc, Layout, System};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static USED: AtomicUsize = AtomicUsize::new(0);
+    static LIMIT: AtomicUsize = AtomicUsize::new(0);
+
+    /// Bytes allocated and not freed.
+    pub fn memory_used() -> usize {
+        USED.load(Ordering::Relaxed)
+    }
+
+    /// Bytes the game may allocate; 0 for no ceiling.
+    pub fn set_memory_limit(bytes: usize) {
+        LIMIT.store(bytes, Ordering::Release);
+    }
+
+    pub struct Allocator;
+
+    // SAFETY: every call forwards to the system allocator; the counter only
+    // mirrors successful allocations.
+    unsafe impl GlobalAlloc for Allocator {
+        unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+            let limit = LIMIT.load(Ordering::Acquire);
+            if limit != 0 && USED.load(Ordering::Relaxed) + layout.size() > limit {
+                return std::ptr::null_mut();
+            }
+            let pointer = unsafe { System.alloc(layout) };
+            if !pointer.is_null() {
+                USED.fetch_add(layout.size(), Ordering::Relaxed);
+            }
+            pointer
+        }
+
+        unsafe fn dealloc(&self, pointer: *mut u8, layout: Layout) {
+            USED.fetch_sub(layout.size(), Ordering::Relaxed);
+            unsafe { System.dealloc(pointer, layout) }
+        }
+    }
+}
 
 /// `mi_option_purge_delay` in mimalloc.h (index 15 in v2 and v3); the bindings
 /// don't name it.

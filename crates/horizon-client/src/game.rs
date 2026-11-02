@@ -46,6 +46,10 @@ mod agent_settings;
 mod allays;
 #[cfg(target_os = "android")]
 mod android_input;
+#[cfg(target_os = "ios")]
+mod ios_install;
+#[cfg(target_os = "ios")]
+mod ios_touch;
 mod armor_stands;
 mod atlas_slots;
 mod banners;
@@ -14762,6 +14766,21 @@ impl ApplicationHandler for Game<'_> {
         if self.window.as_ref().is_none_or(|w| w.id() != id) {
             return;
         }
+        #[cfg(target_os = "ios")]
+        if let WindowEvent::Touch(touch) = &event {
+            let (events, motion) = ios_touch::translate(touch);
+            if let Some(delta) = motion {
+                self.device_event(
+                    event_loop,
+                    winit::event::DeviceId::dummy(),
+                    winit::event::DeviceEvent::MouseMotion { delta },
+                );
+            }
+            for event in events {
+                self.window_event(event_loop, id, event);
+            }
+            return;
+        }
         #[cfg(target_os = "android")]
         if let WindowEvent::KeyboardInput { event, .. } = &mut event
             && !matches!(event.physical_key, PhysicalKey::Code(_))
@@ -18773,6 +18792,12 @@ pub fn run() -> Result<()> {
     }
     let started = Instant::now();
     horizon_client::spans::enable(options.spikes.is_some());
+    // iOS installs its resources on the device before the first game: the same
+    // Mojang downloader Android runs, into the app container.
+    #[cfg(target_os = "ios")]
+    if !horizon_client::official_install::ready(&horizon_client::logging::game_home()) {
+        return ios_install::show(&horizon_client::logging::game_home());
+    }
     let vanilla_root = options.resources.clone();
     if let Some(error) = missing_resources(&vanilla_root) {
         // The game build started by hand (the release's zip), not by the
