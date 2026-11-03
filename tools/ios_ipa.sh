@@ -21,8 +21,15 @@ cp "target/$target/fast/horizon-client" "$out/$name.app/horizon-client"
 cp ios/Info.plist "$out/$name.app/Info.plist"
 cp crates/horizon-theme/icons/horizon-64.png "$out/$name.app/Icon.png"
 printf 'APPL????' > "$out/$name.app/PkgInfo"
-# The game binary and its shaders are the only things in the bundle; the ~500 MiB of
-# Minecraft resources are copied into Documents, not shipped.
+# The generated tables the first-launch installer unpacks; the ~500 MiB of
+# Minecraft resources are downloaded into Documents, not shipped. Generate the
+# tables with tools/android_prepare.py and android_build.engine_data(public=True).
+engine_data=${HORIZON_IOS_ENGINE_DATA:-.local/android/engine-data-generated.zip}
+if [ ! -f "$engine_data" ]; then
+    echo "Missing $engine_data: generate it first (see ios/README.md)." >&2
+    exit 1
+fi
+cp "$engine_data" "$out/$name.app/engine-data.zip"
 strip -x "$out/$name.app/horizon-client" 2>/dev/null || true
 
 rm -f "$out/$name.ipa"

@@ -60,6 +60,11 @@ impl ApplicationHandler for Installing {
 /// Downloads the resources into `home` and exits the process: 0 when the game can
 /// start next time, 1 when the install failed (the cache stays for a retry).
 pub(super) fn show(home: &std::path::Path) -> Result<()> {
+    // The generated engine tables ride in the app bundle; the installer unpacks
+    // them from the game folder.
+    let packed = std::env::current_exe()?.with_file_name("engine-data.zip");
+    std::fs::copy(&packed, home.join("engine-data.zip"))
+        .map_err(|error| format!("Cannot copy {}: {error}", packed.display()))?;
     let done = Arc::new(AtomicBool::new(false));
     let error = Arc::new(Mutex::new(None));
     let home = home.to_owned();

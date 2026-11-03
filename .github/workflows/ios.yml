@@ -13,7 +13,7 @@ concurrency:
 jobs:
   ipa:
     runs-on: macos-15-intel
-    timeout-minutes: 90
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,7 +22,21 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ios
+      # The generated engine tables need Minecraft's jars and a Java 25 runtime;
+      # they are Horizon's own output, so the IPA can carry them.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .local/android
+            .local/horizon-client
+          key: tables-${{ hashFiles('research-lock.json') }}
+      - run: python3 tools/android_prepare.py --tables-only
+      - run: python3 -c "import sys; sys.path.insert(0, 'tools'); import android_build; print(android_build.engine_data(public=True))"
       - run: sh tools/ios_ipa.sh
+      - name: Report sizes
+        run: |
+          ls -lh build/ios/Horizon.ipa .local/android/engine-data-generated.zip
+          du -sh .local/android .local/horizon-client
       - uses: actions/upload-artifact@v4
         with:
           name: Horizon-ipa

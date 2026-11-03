@@ -52,7 +52,7 @@ def parallel_download(files):
             pass
 
 
-def download_game(version, directory):
+def download_game(version, directory, assets=True):
     pins = json.loads((ROOT / 'research-lock.json').read_text())['minecraft']
     if version != pins['version']:
         raise ValueError(f"This engine implements {pins['version']}; {version} is unsupported")
@@ -73,14 +73,15 @@ def download_game(version, directory):
         files.append((artifact['url'], versions / f'{version}{"-server" if side == "server" else ""}.jar', artifact['sha1']))
     for artifact in lab.client_library_artifacts(manifest):
         files.append((artifact['url'], relative(directory / 'libraries', artifact['path']), artifact['sha1']))
-    index = manifest['assetIndex']
-    index_path = relative(directory / 'assets/indexes', f"{index['id']}.json")
-    lab.download(index['url'], index_path, index['sha1'])
-    objects = json.loads(index_path.read_text())['objects']
-    for value in objects.values():
-        checksum = value['hash']
-        name = f'{checksum[:2]}/{checksum}'
-        files.append((f'https://resources.download.minecraft.net/{name}', directory / 'assets/objects' / name, checksum))
+    if assets:
+        index = manifest['assetIndex']
+        index_path = relative(directory / 'assets/indexes', f"{index['id']}.json")
+        lab.download(index['url'], index_path, index['sha1'])
+        objects = json.loads(index_path.read_text())['objects']
+        for value in objects.values():
+            checksum = value['hash']
+            name = f'{checksum[:2]}/{checksum}'
+            files.append((f'https://resources.download.minecraft.net/{name}', directory / 'assets/objects' / name, checksum))
     print(f'Downloading Minecraft {version}: {len(files)} verified files', flush=True)
     parallel_download(files)
     return manifest, versions / f'{version}-server.jar'
@@ -111,7 +112,9 @@ def download_jdk(manifest, directory):
             relative(home, str(Path(name).parent / info['target']))
             path.parent.mkdir(parents=True, exist_ok=True)
             path.symlink_to(info['target'])
-    return home
+    # macOS packs the runtime in a bundle; JAVA_HOME names its Contents/Home.
+    bundle = home / 'jre.bundle/Contents/Home'
+    return bundle if bundle.is_dir() else home
 
 
 def main():
@@ -119,13 +122,14 @@ def main():
     parser.add_argument('--version', default=lab.pinned_version())
     parser.add_argument('--java-home', type=Path)
     parser.add_argument('--bundle-only', action='store_true', help='Package already prepared resources without downloading or exporting again')
+    parser.add_argument('--tables-only', action='store_true', help='Generated engine tables only: skip the asset store and the private bundle')
     args = parser.parse_args()
     private = ROOT / '.local/android'
     if args.bundle_only:
         package_resources(args.version, private)
         return
     minecraft = private / 'minecraft'
-    manifest, server = download_game(args.version, minecraft)
+    manifest, server = download_game(args.version, minecraft, assets=not args.tables_only)
     java_home = args.java_home or download_jdk(manifest, private / 'jdk')
     environment = dict(os.environ, JAVA_HOME=str(java_home.resolve()))
     isolated = Path(tempfile.mkdtemp(prefix='prepare-', dir=private))
@@ -135,7 +139,8 @@ def main():
     subprocess.run(['cargo', 'run', '-p', 'horizon-prepare', '--', '--root', str(ROOT), '--prepare',
                     '--minecraft-dir', str(minecraft), '--server-jar', str(server)],
                    cwd=ROOT, env=environment, check=True)
-    package_resources(args.version, private)
+    if not args.tables_only:
+        package_resources(args.version, private)
 
 
 def package_resources(version, private):

@@ -5,10 +5,14 @@ needed: TrollStore fakesigns the app when it installs it, and the install does n
 
 ## Build
 
-On macOS with Xcode (the iOS SDK is required to link):
+On macOS with Xcode (the iOS SDK is required to link). The IPA carries the generated
+engine tables the first launch installs, so prepare them first (Minecraft's jars and a
+Java 25 runtime are downloaded; see `tools/android_prepare.py`):
 
 ```sh
 rustup target add aarch64-apple-ios
+python3 tools/android_prepare.py --tables-only
+python3 -c "import sys; sys.path.insert(0, 'tools'); import android_build; android_build.engine_data(public=True)"
 sh tools/ios_ipa.sh        # -> build/ios/Horizon.ipa
 ```
 
